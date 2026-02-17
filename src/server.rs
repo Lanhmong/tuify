@@ -1,15 +1,27 @@
-use std::collections::HashMap;
+use color_eyre::{Result, eyre::WrapErr};
+use std::{collections::HashMap, io::Error};
 use tiny_http::{Response, Server};
 
-pub fn run_server() {
-    let server = tiny_http::Server::http("127.0.0.1:8080").expect("Failed to start server");
+pub fn run_server() -> Result<String> {
+    let server = Server::http("127.0.0.1:8080")
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to start server: {}", e))?;
 
-    let request = server.recv().expect("Failed to receive request");
+    let request = server
+        .recv()
+        .wrap_err("Failed to receive callback request")?;
 
-    let url = request.url();
-    let params = parse_params(&url);
-    let code = params.get("code");
-    let state = params.get("state");
+    let params = parse_params(request.url());
+    let code = params
+        .get("code")
+        .ok_or_else(|| color_eyre::eyre::eyre!("No code in callback"))
+        .wrap_err("Invalid callback URL")?
+        .to_string();
+
+    request
+        .respond(Response::from_string("Success!"))
+        .wrap_err("Failed to send response to browser")?;
+
+    Ok(code)
 }
 
 fn parse_params(url: &str) -> HashMap<&str, &str> {
