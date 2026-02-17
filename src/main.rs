@@ -1,15 +1,35 @@
-use rand::rngs::SysError;
+use ratatui::prelude::*;
+use ratatui::widgets::{Block, Paragraph};
+use ratatui::{DefaultTerminal, Frame};
+mod server;
+mod util;
 
-mod base64;
-mod random_string;
-mod sha256;
-
-fn main() -> Result<(), SysError> {
-    let code_verifier = random_string::get_random_string()?;
-    let hashed = sha256::sha256_bytes(&code_verifier);
-    let code_challenge = base64::base64_encode(&hashed);
-
-    println!("code verifier: {code_verifier}");
-    println!("code challenge: {code_challenge}");
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    ratatui::run(app)?;
     Ok(())
+}
+
+fn app(terminal: &mut DefaultTerminal) -> std::io::Result<()> {
+    loop {
+        terminal.draw(render)?;
+        if crossterm::event::read()?.is_key_press() {
+            break Ok(());
+        }
+    }
+}
+
+fn render(frame: &mut Frame) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Length(3),
+            Constraint::Percentage(50),
+            Constraint::Min(1),
+        ])
+        .split(frame.area());
+
+    let bottom_block = Block::bordered().title("Bottom");
+
+    frame.render_widget(bottom_block, layout[1]);
 }
