@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
-    RedirectUrl, Scope, TokenResponse, TokenUrl, basic::BasicClient,
+    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
+    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;

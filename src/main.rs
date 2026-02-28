@@ -8,6 +8,7 @@ mod auth;
 mod server;
 
 fn main() -> Result<()> {
+    dotenv::dotenv().ok();
     color_eyre::install()?;
 
     let token = auth::load_token();
