@@ -1,27 +1,66 @@
-use color_eyre::{Result, eyre::WrapErr};
-use std::{collections::HashMap, io::Error};
+use color_eyre::Result;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tiny_http::{Response, Server};
 
-pub fn run_server() -> Result<String> {
+pub struct AuthCallback {
+    pub code: Option<String>,
+    pub state: Option<String>,
+    pub error: Option<String>,
+    pub received: bool,
+}
+
+impl AuthCallback {
+    pub fn new() -> Self {
+        Self {
+            code: None,
+            state: None,
+            error: None,
+            received: false,
+        }
+    }
+}
+
+pub fn run_server(callback: Arc<Mutex<AuthCallback>>) -> Result<()> {
     let server = Server::http("127.0.0.1:8080")
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to start server: {}", e))?;
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to bind to port 8080: {}", e))?;
 
-    let request = server
-        .recv()
-        .wrap_err("Failed to receive callback request")?;
+    println!("Server listening on http://127.0.0.1:8080");
 
-    let params = parse_params(request.url());
-    let code = params
-        .get("code")
-        .ok_or_else(|| color_eyre::eyre::eyre!("No code in callback"))
-        .wrap_err("Invalid callback URL")?
-        .to_string();
+    for request in server.incoming_requests() {
+        let url = request.url();
+        let params = parse_params(url);
 
-    request
-        .respond(Response::from_string("Success!"))
-        .wrap_err("Failed to send response to browser")?;
+        let mut cb = callback.lock().unwrap();
 
-    Ok(code)
+        if let Some(error) = params.get("error") {
+            cb.error = Some(error.to_string());
+            cb.received = true;
+
+            let response =
+                Response::from_string("Authorization failed. You can close this window.");
+            request.respond(response).ok();
+            break;
+        }
+
+        if let Some(code) = params.get("code") {
+            let state = params.get("state").map(|s| s.to_string());
+            cb.code = Some(code.to_string());
+            cb.state = state;
+            cb.received = true;
+
+            let response = Response::from_string(
+                "Authorization successful! You can close this window and return to the app.",
+            );
+            request.respond(response).ok();
+            break;
+        }
+
+        let response = Response::from_string("Waiting for authorization...");
+        request.respond(response).ok();
+    }
+
+    Ok(())
 }
 
 fn parse_params(url: &str) -> HashMap<&str, &str> {
