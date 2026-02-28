@@ -103,6 +103,7 @@ pub fn start_auth_flow(config: &SpotifyConfig) -> Result<Token> {
     let (code, received_state) = server::get_authorization_code()?;
 
     let token = auth_flow.exchange(&code, &received_state)?;
+    println!("Authenticated successfully!");
 
     Ok(token)
 }

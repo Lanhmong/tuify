@@ -25,7 +25,11 @@ pub fn get_authorization_code() -> Result<(String, String)> {
             let state = state.to_string();
 
             let response = Response::from_string(
-                "Authorization successful! You can close this window and return to the app.",
+                r#"/\_/\
+( o.o )
+ > ^ <
+
+Authorization successful! You can close this window and return to the app."#,
             );
             request.respond(response).ok();
             return Ok((code, state));

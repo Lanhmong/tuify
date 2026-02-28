@@ -6,6 +6,11 @@ use ratatui::{DefaultTerminal, Frame};
 mod auth;
 mod server;
 
+#[derive(Debug, Default)]
+pub struct App {
+    exit: bool,
+}
+
 fn main() -> Result<()> {
     dotenv::dotenv().ok();
     color_eyre::install()?;
@@ -27,7 +32,6 @@ fn main() -> Result<()> {
     };
 
     auth::save_token(&token)?;
-    println!("Authenticated successfully!");
 
     ratatui::run(app)?;
     Ok(())
