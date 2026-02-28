@@ -1,86 +1,17 @@
+mod config;
+mod token;
+
+pub use config::SpotifyConfig;
+pub use token::{Token, format_expires_at, is_authorized, load_token, refresh, save_token};
+
 use color_eyre::Result;
 use oauth2::{
-    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
+    AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier, Scope, TokenResponse,
 };
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
+use rand::random;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub struct SpotifyConfig {
-    pub client_id: String,
-    pub redirect_uri: String,
-    pub scopes: Vec<String>,
-}
-
-impl SpotifyConfig {
-    pub fn from_env() -> Result<Self> {
-        let client_id = std::env::var("SPOTIFY_CLIENT_ID")
-            .map_err(|_| color_eyre::eyre::eyre!("SPOTIFY_CLIENT_ID env var not set"))?;
-
-        Ok(Self {
-            client_id,
-            redirect_uri: "http://127.0.0.1:8080".to_string(),
-            scopes: vec![
-                "user-library-read".to_string(),
-                "playlist-read-private".to_string(),
-            ],
-        })
-    }
-
-    pub fn oauth_client(&self) -> BasicClient {
-        let client_id = ClientId::new(self.client_id.clone());
-        let auth_url = AuthUrl::new("https://accounts.spotify.com/authorize".to_string())
-            .expect("Invalid auth URL");
-        let token_url = TokenUrl::new("https://accounts.spotify.com/api/token".to_string())
-            .expect("Invalid token URL");
-
-        BasicClient::new(client_id, None, auth_url, Some(token_url))
-            .set_redirect_uri(RedirectUrl::new(self.redirect_uri.clone()).unwrap())
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Token {
-    pub access_token: String,
-    pub refresh_token: Option<String>,
-    pub expires_at: u64,
-    pub scope: String,
-}
-
-impl Token {
-    pub fn is_expired(&self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        now >= self.expires_at
-    }
-}
-
-fn get_token_path() -> PathBuf {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("tuify");
-    fs::create_dir_all(&config_dir).ok();
-    config_dir.join("tokens.json")
-}
-
-pub fn load_token() -> Option<Token> {
-    let path = get_token_path();
-    let content = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-pub fn save_token(token: &Token) -> Result<()> {
-    let path = get_token_path();
-    let content = serde_json::to_string_pretty(token)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to serialize token: {}", e))?;
-    fs::write(path, content)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to write token file: {}", e))?;
-    Ok(())
-}
+use crate::server;
 
 pub struct AuthFlow {
     pkce_verifier: PkceCodeVerifier,
@@ -101,7 +32,7 @@ impl AuthFlow {
             .collect();
 
         let (auth_url, csrf_token) = client
-            .authorize_url(|| CsrfToken::new("dummy".to_string()))
+            .authorize_url(|| CsrfToken::new(random::<u64>().to_string()))
             .add_scopes(scopes)
             .set_pkce_challenge(pkce_challenge)
             .url();
@@ -160,32 +91,18 @@ impl AuthFlow {
     }
 }
 
-pub fn refresh(config: &SpotifyConfig, refresh_token: &str) -> Result<Token> {
-    let client = config.oauth_client();
+pub fn start_auth_flow(config: &SpotifyConfig) -> Result<Token> {
+    let auth_flow = AuthFlow::new(config)?;
 
-    let token_result = client
-        .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token.to_string()))
-        .request(oauth2::reqwest::http_client)?;
+    println!("Opening browser for authorization...");
+    println!("Please authorize the application.");
 
-    let access_token = token_result.access_token().secret().to_string();
-    let new_refresh_token = token_result.refresh_token().map(|t| t.secret().to_string());
-    let expires_in = token_result
-        .expires_in()
-        .map(|e| e.as_secs())
-        .unwrap_or(3600);
+    open::with_command(auth_flow.url(), "firefox").status()?;
 
-    let scope = config.scopes.join(" ");
+    println!("Waiting for authorization...");
+    let (code, received_state) = server::get_authorization_code()?;
 
-    let expires_at = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + expires_in;
+    let token = auth_flow.exchange(&code, &received_state)?;
 
-    Ok(Token {
-        access_token,
-        refresh_token: new_refresh_token.or(Some(refresh_token.to_string())),
-        expires_at,
-        scope,
-    })
+    Ok(token)
 }

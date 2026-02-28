@@ -1,27 +1,8 @@
 use color_eyre::Result;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tiny_http::{Response, Server};
 
-pub struct AuthCallback {
-    pub code: Option<String>,
-    pub state: Option<String>,
-    pub error: Option<String>,
-    pub received: bool,
-}
-
-impl AuthCallback {
-    pub fn new() -> Self {
-        Self {
-            code: None,
-            state: None,
-            error: None,
-            received: false,
-        }
-    }
-}
-
-pub fn run_server(callback: Arc<Mutex<AuthCallback>>) -> Result<()> {
+pub fn get_authorization_code() -> Result<(String, String)> {
     let server = Server::http("127.0.0.1:8080")
         .map_err(|e| color_eyre::eyre::eyre!("Failed to bind to port 8080: {}", e))?;
 
@@ -31,36 +12,30 @@ pub fn run_server(callback: Arc<Mutex<AuthCallback>>) -> Result<()> {
         let url = request.url();
         let params = parse_params(url);
 
-        let mut cb = callback.lock().unwrap();
-
         if let Some(error) = params.get("error") {
-            cb.error = Some(error.to_string());
-            cb.received = true;
-
+            let error = error.to_string();
             let response =
                 Response::from_string("Authorization failed. You can close this window.");
             request.respond(response).ok();
-            break;
+            return Err(color_eyre::eyre::eyre!("Authorization error: {}", error));
         }
 
-        if let Some(code) = params.get("code") {
-            let state = params.get("state").map(|s| s.to_string());
-            cb.code = Some(code.to_string());
-            cb.state = state;
-            cb.received = true;
+        if let (Some(code), Some(state)) = (params.get("code"), params.get("state")) {
+            let code = code.to_string();
+            let state = state.to_string();
 
             let response = Response::from_string(
                 "Authorization successful! You can close this window and return to the app.",
             );
             request.respond(response).ok();
-            break;
+            return Ok((code, state));
         }
 
         let response = Response::from_string("Waiting for authorization...");
         request.respond(response).ok();
     }
 
-    Ok(())
+    Err(color_eyre::eyre::eyre!("No authorization code received"))
 }
 
 fn parse_params(url: &str) -> HashMap<&str, &str> {
