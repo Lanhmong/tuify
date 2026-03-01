@@ -1,15 +1,18 @@
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::prelude::*;
-use ratatui::widgets::Block;
+use ratatui::widgets::{Block, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 
 mod auth;
 mod server;
+mod spotify;
 
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
+    playlists: Option<String>,
+    error: Option<String>,
 }
 
 impl App {
@@ -37,9 +40,17 @@ impl App {
             ])
             .split(frame.area());
 
-        let bottom_block = Block::bordered().title(self.exit.to_string());
+        let content = if let Some(ref error) = self.error {
+            format!("Error: {}", error)
+        } else if let Some(ref playlists) = self.playlists {
+            playlists.clone()
+        } else {
+            "No playlists loaded".to_string()
+        };
 
-        frame.render_widget(bottom_block, layout[1]);
+        let block = Block::bordered().title("Playlists");
+        let paragraph = Paragraph::new(content).block(block);
+        frame.render_widget(paragraph, layout[1]);
     }
 }
 
@@ -65,9 +76,17 @@ fn main() -> Result<()> {
 
     auth::save_token(&token)?;
 
-    ratatui::run(|terminal| {
-        let mut app = App::default();
-        app.run(terminal)
-    })?;
+    let (playlists, error) = match spotify::get_current_users_playlist() {
+        Ok(data) => (Some(data), None),
+        Err(e) => (None, Some(e.to_string())),
+    };
+
+    let mut app = App {
+        playlists,
+        error,
+        ..Default::default()
+    };
+
+    ratatui::run(|terminal| app.run(terminal))?;
     Ok(())
 }
