@@ -2,7 +2,7 @@ mod config;
 mod token;
 
 pub use config::SpotifyConfig;
-pub use token::{Token, format_expires_at, is_authorized, load_token, refresh, save_token};
+pub use token::{format_expires_at, is_authorized, load_token, refresh, save_token, Token};
 
 use color_eyre::Result;
 use oauth2::{

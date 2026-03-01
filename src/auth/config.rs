@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use oauth2::{AuthUrl, ClientId, RedirectUrl, TokenUrl, basic::BasicClient};
+use oauth2::{basic::BasicClient, AuthUrl, ClientId, RedirectUrl, TokenUrl};
 
 pub struct SpotifyConfig {
     pub client_id: String,
