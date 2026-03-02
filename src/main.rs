@@ -1,17 +1,19 @@
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::widgets::{Block, List, ListItem, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 
 mod auth;
 mod server;
 mod spotify;
 
-#[derive(Debug, Default)]
+use crate::spotify::Playlist;
+
+#[derive(Default)]
 pub struct App {
     exit: bool,
-    playlists: Option<String>,
+    playlists: Option<Vec<Playlist>>,
     error: Option<String>,
 }
 
@@ -20,8 +22,8 @@ impl App {
         loop {
             terminal.draw(|f| self.render(f))?;
             if let Event::Key(key_event) = crossterm::event::read()? {
-                if (key_event.code == KeyCode::Char('c')
-                    && key_event.modifiers.contains(KeyModifiers::CONTROL))
+                if key_event.code == KeyCode::Char('c')
+                    && key_event.modifiers.contains(KeyModifiers::CONTROL)
                 {
                     break Ok(());
                 }
@@ -40,15 +42,22 @@ impl App {
             ])
             .split(frame.area());
 
+        let block = Block::bordered().title("Playlists");
+
         let content = if let Some(ref error) = self.error {
-            format!("Error: {}", error)
+            Text::from(format!("Error: {}", error))
         } else if let Some(ref playlists) = self.playlists {
-            playlists.clone()
+            let items: Vec<ListItem> = playlists
+                .iter()
+                .map(|playlist| ListItem::new(playlist.name.as_str()))
+                .collect();
+            let list = List::new(items).block(block);
+            frame.render_widget(list, layout[1]);
+            return;
         } else {
-            "No playlists loaded".to_string()
+            Text::from("No playlists loaded")
         };
 
-        let block = Block::bordered().title("Playlists");
         let paragraph = Paragraph::new(content).block(block);
         frame.render_widget(paragraph, layout[1]);
     }
@@ -76,8 +85,8 @@ fn main() -> Result<()> {
 
     auth::save_token(&token)?;
 
-    let (playlists, error) = match spotify::get_current_users_playlist() {
-        Ok(data) => (Some(data), None),
+    let (playlists, error) = match spotify::get_current_users_playlists() {
+        Ok(playlists) => (Some(playlists), None),
         Err(e) => (None, Some(e.to_string())),
     };
 
