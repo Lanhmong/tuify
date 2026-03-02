@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 
 mod auth;
@@ -14,6 +14,7 @@ use crate::spotify::Playlist;
 pub struct App {
     exit: bool,
     playlists: Option<Vec<Playlist>>,
+    selected_playlist_index: usize,
     error: Option<String>,
 }
 
@@ -27,7 +28,23 @@ impl App {
                 {
                     break Ok(());
                 }
-                self.exit = !self.exit;
+                if let Some(ref playlists) = self.playlists
+                    && !playlists.is_empty()
+                {
+                    match key_event.code {
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            if self.selected_playlist_index > 0 {
+                                self.selected_playlist_index -= 1;
+                            }
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            if self.selected_playlist_index < playlists.len() - 1 {
+                                self.selected_playlist_index += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
     }
@@ -51,8 +68,17 @@ impl App {
                 .iter()
                 .map(|playlist| ListItem::new(playlist.name.as_str()))
                 .collect();
-            let list = List::new(items).block(block);
-            frame.render_widget(list, layout[1]);
+            let mut list_state =
+                ListState::default().with_selected(Some(self.selected_playlist_index));
+            let list = List::new(items)
+                .block(block)
+                .highlight_symbol("> ")
+                .highlight_style(
+                    Style::new()
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                );
+            frame.render_stateful_widget(list, layout[1], &mut list_state);
             return;
         } else {
             Text::from("No playlists loaded")
@@ -93,7 +119,8 @@ fn main() -> Result<()> {
     let mut app = App {
         playlists,
         error,
-        ..Default::default()
+        exit: false,
+        selected_playlist_index: 0,
     };
 
     ratatui::run(|terminal| app.run(terminal))?;
