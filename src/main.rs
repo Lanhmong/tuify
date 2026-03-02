@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use crossterm::event::{Event, KeyCode, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyModifiers, KeyEvent};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
@@ -9,6 +9,11 @@ mod server;
 mod spotify;
 
 use crate::spotify::Playlist;
+
+enum MoveDirection {
+    Up,
+    Down,
+}
 
 #[derive(Default)]
 pub struct App {
@@ -26,24 +31,40 @@ impl App {
                 if key_event.code == KeyCode::Char('c')
                     && key_event.modifiers.contains(KeyModifiers::CONTROL)
                 {
-                    break Ok(());
+                    return Ok(());
                 }
                 if let Some(ref playlists) = self.playlists
                     && !playlists.is_empty()
                 {
-                    match key_event.code {
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            if self.selected_playlist_index > 0 {
-                                self.selected_playlist_index -= 1;
-                            }
-                        }
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            if self.selected_playlist_index < playlists.len() - 1 {
-                                self.selected_playlist_index += 1;
-                            }
-                        }
-                        _ => {}
-                    }
+                    let len = playlists.len();
+                    self.handle_key_event(key_event, len);
+                }
+            }
+        }
+    }
+
+    fn handle_key_event(&mut self, key_event: KeyEvent, len: usize) {
+        match key_event.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.move_selection(MoveDirection::Up, len);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.move_selection(MoveDirection::Down, len);
+            }
+            _ => {}
+        }
+    }
+
+    fn move_selection(&mut self, direction: MoveDirection, len: usize) {
+        match direction {
+            MoveDirection::Up => {
+                if self.selected_playlist_index > 0 {
+                    self.selected_playlist_index -= 1;
+                }
+            }
+            MoveDirection::Down => {
+                if self.selected_playlist_index < len - 1 {
+                    self.selected_playlist_index += 1;
                 }
             }
         }
