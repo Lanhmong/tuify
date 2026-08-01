@@ -1,4 +1,5 @@
-use crate::app::App;
+use crate::{app::App, auth::exchange_code};
+use color_eyre::Result;
 use ratatui::{Frame, widgets::Paragraph};
 
 use crate::app::Screen;
@@ -8,7 +9,15 @@ pub fn render(frame: &mut Frame) {
     frame.render_widget(Paragraph::new(text), frame.area());
 }
 
-pub fn on_token_received(app: &mut App, code: String) {
-    app.access_token = Some(code);
+pub async fn on_token_received(app: &mut App, code: &str) -> Result<()> {
+    let verifier = match &app.screen {
+        Screen::WaitingForAuth { verifier, .. } => verifier,
+        _ => unreachable!(),
+    };
+
+    let tokens = exchange_code(code, verifier).await?;
+    app.access_token = Some(tokens.access_token);
+    app.refresh_token = Some(tokens.refresh_token);
     app.screen = Screen::Authenticated;
+    Ok(())
 }

@@ -18,7 +18,6 @@ async fn main() -> Result<()> {
         screen: Screen::Welcome,
         access_token: None,
         refresh_token: None,
-        auth_rx: None,
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;
@@ -31,7 +30,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| match &app.screen {
             Screen::Welcome => welcome::render(f),
-            Screen::WaitingForAuth => waiting_for_auth::render(f),
+            Screen::WaitingForAuth { .. } => waiting_for_auth::render(f),
             Screen::Authenticated => authenticated::render(f),
         })?;
 
@@ -46,18 +45,18 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
                 }
                 match &app.screen {
                     Screen::Welcome => welcome::update(app, &event)?,
-                    Screen::WaitingForAuth => {}
+                    Screen::WaitingForAuth { .. }=> {}
                     Screen::Authenticated => {}
                 }
             }
             code = async {
-                match &mut app.auth_rx {
-                    Some(rx) => rx.recv().await,
-                    None => std::future::pending().await,
+                match &mut app.screen {
+                    Screen::WaitingForAuth { rx, .. } => rx.recv().await,
+                    _ => std::future::pending().await,
                 }
             } => {
                 if let Some(code) = code {
-                    waiting_for_auth::on_token_received(app, code);
+                    waiting_for_auth::on_token_received(app, &code).await?;
                 }
             }
         }

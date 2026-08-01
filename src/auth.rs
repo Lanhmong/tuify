@@ -6,6 +6,8 @@ use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use url::{ParseError, Url};
 
+const CLIENT_ID: &str = "bbc1f3f6cc4b4af5bb66cf2e6c83f1c8";
+
 fn generate_random_string(length: usize) -> String {
     let possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::rng();
@@ -36,14 +38,13 @@ fn generate_code_challenge() -> (String, String) {
 }
 
 fn build_authorize_url(code_challenge: &str) -> Result<Url, ParseError> {
-    let client_id = "bbc1f3f6cc4b4af5bb66cf2e6c83f1c8";
     let redirect_uri = "http://127.0.0.1:8080";
     let scope = "user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative";
     Url::parse_with_params(
         "https://accounts.spotify.com/authorize",
         [
             ("response_type", "code"),
-            ("client_id", client_id),
+            ("client_id", CLIENT_ID),
             ("scope", scope),
             ("code_challenge_method", "S256"),
             ("code_challenge", code_challenge),
@@ -81,4 +82,29 @@ pub fn run_server(tx: mpsc::Sender<String>) -> Result<()> {
         ))
         .unwrap();
     Ok(())
+}
+
+#[derive(serde::Deserialize)]
+pub struct TokenResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+}
+
+pub async fn exchange_code(code: &str, verifier: &str) -> Result<TokenResponse> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post("https://accounts.spotify.com/api/token")
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", &code),
+            ("redirect_uri", "http://127.0.0.1:8080"),
+            ("client_id", CLIENT_ID),
+            ("code_verifier", &verifier),
+        ])
+        .send()
+        .await?;
+
+    let tokens: TokenResponse = response.json().await?;
+    Ok(tokens)
 }

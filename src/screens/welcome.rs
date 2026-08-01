@@ -25,11 +25,10 @@ pub fn update(app: &mut App, event: &Event) -> Result<()> {
 }
 
 pub fn handle_enter(app: &mut App) -> Result<()> {
-    let (_verifier, url) = authorize()?;
+    let (verifier, url) = authorize()?;
     let (tx, rx) = mpsc::channel(1);
     let _ = tokio::task::spawn_blocking(move || run_server(tx));
     webbrowser::open(url.as_str())?;
-    app.auth_rx = Some(rx);
-    app.screen = Screen::WaitingForAuth;
+    app.screen = Screen::WaitingForAuth { rx, verifier };
     Ok(())
 }
