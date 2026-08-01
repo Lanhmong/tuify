@@ -1,10 +1,9 @@
-use std::sync::mpsc;
-
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Ok, Result};
 use rand::RngExt;
 use sha2::{Digest, Sha256};
+use tokio::sync::mpsc;
 use url::{ParseError, Url};
 
 fn generate_random_string(length: usize) -> String {
@@ -59,7 +58,7 @@ pub fn authorize() -> Result<(String, Url)> {
     Ok((verifier, url))
 }
 
-pub fn run_server(tx: mpsc::Sender<String>) {
+pub fn run_server(tx: mpsc::Sender<String>) -> Result<()> {
     let server = tiny_http::Server::http("127.0.0.1:8080").unwrap();
     let request = server.recv().unwrap();
 
@@ -73,7 +72,7 @@ pub fn run_server(tx: mpsc::Sender<String>) {
         .expect("no authorization code found in redirect");
 
     // Send the code back to the main thread
-    tx.send(code).unwrap();
+    tx.blocking_send(code)?;
 
     // Let the user know it worked
     request
@@ -81,4 +80,5 @@ pub fn run_server(tx: mpsc::Sender<String>) {
             "Logged in! You can close this tab.",
         ))
         .unwrap();
+    Ok(())
 }

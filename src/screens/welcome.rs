@@ -1,8 +1,8 @@
-use crate::auth;
-use color_eyre::Result;
-use color_eyre::eyre::Ok;
+use crate::{app::App, auth::run_server};
+use color_eyre::{Result, eyre::Ok};
+use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, widgets::Paragraph};
-use std::sync::mpsc;
+use tokio::sync::mpsc;
 
 use crate::{app::Screen, auth::authorize};
 
@@ -14,12 +14,22 @@ pub fn render(frame: &mut Frame) {
     frame.render_widget(Paragraph::new(text), frame.area());
 }
 
-pub fn handle_enter() -> Result<Screen> {
-    let (verifier, url) = authorize()?;
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        auth::run_server(tx);
-    });
+pub fn update(app: &mut App, event: &Event) -> Result<()> {
+    if let Event::Key(key) = event {
+        match key.code {
+            KeyCode::Enter => handle_enter(app)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+pub fn handle_enter(app: &mut App) -> Result<()> {
+    let (_verifier, url) = authorize()?;
+    let (tx, rx) = mpsc::channel(1);
+    let _ = tokio::task::spawn_blocking(move || run_server(tx));
     webbrowser::open(url.as_str())?;
-    Ok(Screen::WaitingForAuth { rx, verifier })
+    app.auth_rx = Some(rx);
+    app.screen = Screen::WaitingForAuth;
+    Ok(())
 }
