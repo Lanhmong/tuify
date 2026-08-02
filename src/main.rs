@@ -8,6 +8,7 @@ use color_eyre::eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
 use futures::StreamExt;
 use ratatui::DefaultTerminal;
+use ratatui::widgets::ListState;
 
 use crate::app::{App, Screen};
 use crate::screens::welcome;
@@ -21,6 +22,7 @@ async fn main() -> Result<()> {
         access_token: None,
         refresh_token: None,
         playlists: Vec::new(),
+        list_state: ListState::default(),
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;
@@ -34,7 +36,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
         terminal.draw(|f| match &app.screen {
             Screen::Welcome => welcome::render(f),
             Screen::WaitingForAuth { .. } => waiting_for_auth::render(f),
-            Screen::Authenticated => authenticated::render(f, &app),
+            Screen::Authenticated => authenticated::render(f, app),
         })?;
 
         tokio::select! {
@@ -49,7 +51,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
                 match &app.screen {
                     Screen::Welcome => welcome::update(app, &event)?,
                     Screen::WaitingForAuth { .. }=> {}
-                    Screen::Authenticated => {}
+                    Screen::Authenticated => authenticated::update(app, &event)?
                 }
             }
             code = async {

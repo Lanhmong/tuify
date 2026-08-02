@@ -20,6 +20,7 @@ pub async fn on_token_received(app: &mut App, code: &str) -> Result<()> {
     app.access_token = Some(tokens.access_token);
     app.refresh_token = Some(tokens.refresh_token);
     app.playlists = response.items;
+    app.list_state.select(Some(0));
     app.screen = Screen::Authenticated;
     Ok(())
 }

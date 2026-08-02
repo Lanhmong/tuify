@@ -1,3 +1,5 @@
+use ratatui::widgets::ListState;
+
 use crate::models::Playlist;
 
 pub enum Screen {
@@ -14,4 +16,5 @@ pub struct App {
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
     pub playlists: Vec<Playlist>,
+    pub list_state: ListState,
 }
