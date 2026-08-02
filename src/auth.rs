@@ -88,7 +88,6 @@ pub fn run_server(tx: mpsc::Sender<String>) -> Result<()> {
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,
-    pub scope: String,
 }
 
 pub async fn exchange_code(code: &str, verifier: &str) -> Result<TokenResponse> {

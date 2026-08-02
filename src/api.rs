@@ -62,3 +62,17 @@ pub async fn get_devices(access_token: &str) -> Result<Vec<Device>> {
     let body: DevicesResponse = response.json().await?;
     Ok(body.devices)
 }
+
+pub async fn play_track(access_token: &str, device_id: &str, track_uri: &str) -> Result<()> {
+    let client = reqwest::Client::new();
+    client
+        .put(format!(
+            "https://api.spotify.com/v1/me/player/play?device_id={device_id}"
+        ))
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({ "uris": [track_uri] }))
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(())
+}

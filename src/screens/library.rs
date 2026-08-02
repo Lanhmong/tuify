@@ -1,4 +1,4 @@
-use color_eyre::eyre::{Ok, Result};
+use color_eyre::eyre::{Ok, Result, bail};
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
     Frame,
@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::{
-    api::get_playlists_track,
+    api::{get_devices, get_playlists_track, play_track},
     app::{App, Focus},
 };
 
@@ -101,15 +101,33 @@ pub async fn update(app: &mut App, event: &Event) -> Result<()> {
                     app.track_state.select(Some(current.saturating_sub(1)))
                 }
             },
-            KeyCode::Enter => {
-                if let (Some(token), Some(index)) = (&app.access_token, app.list_state.selected()) {
-                    let playlist = &app.playlists[index];
-                    let tracks = get_playlists_track(token, &playlist.id).await?;
-                    app.tracks = tracks;
-                    app.track_state.select(Some(0));
-                    app.focus = Focus::Tracks;
+            KeyCode::Enter => match app.focus {
+                Focus::Playlists => {
+                    if let (Some(token), Some(index)) =
+                        (&app.access_token, app.list_state.selected())
+                    {
+                        let playlist = &app.playlists[index];
+                        let tracks = get_playlists_track(token, &playlist.id).await?;
+                        app.tracks = tracks;
+                        app.track_state.select(Some(0));
+                        app.focus = Focus::Tracks;
+                    }
                 }
-            }
+                Focus::Tracks => {
+                    if let (Some(token), Some(index)) =
+                        (&app.access_token, app.track_state.selected())
+                    {
+                        let uri = app.tracks[index].uri.clone();
+                        let devices = get_devices(token).await?;
+                        let device = devices.iter().find(|d| d.is_active).or(devices.first());
+                        if let Some(device) = device {
+                            play_track(token, &device.id, &uri).await?;
+                        } else {
+                            bail!("No Spotify device found - is the Spotify app open?")
+                        }
+                    }
+                }
+            },
             KeyCode::Tab => {
                 app.focus = match app.focus {
                     Focus::Playlists => Focus::Tracks,
