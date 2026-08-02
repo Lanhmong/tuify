@@ -44,7 +44,7 @@ impl Track {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct Device {
     pub id: String,
     pub name: String,

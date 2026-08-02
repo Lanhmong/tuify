@@ -22,10 +22,12 @@ async fn main() -> Result<()> {
         access_token: None,
         refresh_token: None,
         playlists: Vec::new(),
-        list_state: ListState::default(),
+        playlist_state: ListState::default(),
         track_state: TableState::default(),
         tracks: Vec::new(),
         focus: Focus::Playlists,
+        devices: Vec::new(),
+        selected_device: None,
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;

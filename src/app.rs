@@ -1,6 +1,6 @@
 use ratatui::widgets::{ListState, TableState};
 
-use crate::models::{Playlist, Track};
+use crate::models::{Device, Playlist, Track};
 
 pub enum Screen {
     Welcome,
@@ -21,8 +21,10 @@ pub struct App {
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
     pub playlists: Vec<Playlist>,
-    pub list_state: ListState,
+    pub playlist_state: ListState,
     pub track_state: TableState,
     pub tracks: Vec<Track>,
     pub focus: Focus,
+    pub devices: Vec<Device>,
+    pub selected_device: Option<Device>,
 }
