@@ -1,6 +1,18 @@
-use ratatui::{Frame, widgets::Paragraph};
+use ratatui::{
+    Frame,
+    widgets::{List, ListItem},
+};
 
-pub fn render(frame: &mut Frame) {
-    let text = vec!["Authenticated!".into()];
-    frame.render_widget(Paragraph::new(text), frame.area());
+use crate::app::App;
+
+pub fn render(frame: &mut Frame, app: &App) {
+    let items: Vec<ListItem> = app
+        .playlists
+        .iter()
+        .map(|p| ListItem::new(p.name.clone()))
+        .collect();
+
+    let list = List::new(items);
+
+    frame.render_widget(list, frame.area());
 }

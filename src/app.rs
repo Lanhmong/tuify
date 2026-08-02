@@ -1,3 +1,5 @@
+use crate::models::Playlist;
+
 pub enum Screen {
     Welcome,
     WaitingForAuth {
@@ -11,4 +13,5 @@ pub struct App {
     pub screen: Screen,
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
+    pub playlists: Vec<Playlist>,
 }

@@ -1,5 +1,7 @@
+mod api;
 mod app;
 mod auth;
+mod models;
 mod screens;
 
 use color_eyre::eyre::Result;
@@ -18,6 +20,7 @@ async fn main() -> Result<()> {
         screen: Screen::Welcome,
         access_token: None,
         refresh_token: None,
+        playlists: Vec::new(),
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;
@@ -31,7 +34,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
         terminal.draw(|f| match &app.screen {
             Screen::Welcome => welcome::render(f),
             Screen::WaitingForAuth { .. } => waiting_for_auth::render(f),
-            Screen::Authenticated => authenticated::render(f),
+            Screen::Authenticated => authenticated::render(f, &app),
         })?;
 
         tokio::select! {
