@@ -8,9 +8,9 @@ use color_eyre::eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
 use futures::StreamExt;
 use ratatui::DefaultTerminal;
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, TableState};
 
-use crate::app::{App, Screen};
+use crate::app::{App, Focus, Screen};
 use crate::screens::welcome;
 use crate::screens::{library, waiting_for_auth};
 
@@ -23,7 +23,9 @@ async fn main() -> Result<()> {
         refresh_token: None,
         playlists: Vec::new(),
         list_state: ListState::default(),
+        track_state: TableState::default(),
         tracks: Vec::new(),
+        focus: Focus::Playlists,
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;

@@ -1,6 +1,6 @@
 use color_eyre::eyre::{Ok, Result};
 
-use crate::models::{Playlist, Track};
+use crate::models::{Device, Playlist, Track};
 
 #[derive(serde::Deserialize)]
 struct PlaylistsResponse {
@@ -43,4 +43,22 @@ pub async fn get_playlists_track(access_token: &str, playlist_id: &str) -> Resul
 
     let body: PlaylistTrackResponse = response.json().await?;
     Ok(body.items.into_iter().map(|i| i.item).collect())
+}
+
+#[derive(serde::Deserialize)]
+struct DevicesResponse {
+    devices: Vec<Device>,
+}
+
+pub async fn get_devices(access_token: &str) -> Result<Vec<Device>> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("https://api.spotify.com/v1/me/player/devices"))
+        .bearer_auth(access_token)
+        .send()
+        .await?
+        .error_for_status()?;
+
+    let body: DevicesResponse = response.json().await?;
+    Ok(body.devices)
 }

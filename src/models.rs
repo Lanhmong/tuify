@@ -20,23 +20,33 @@ pub struct Track {
     pub duration_ms: u64,
     pub artists: Vec<Artist>,
     pub album: Album,
+    pub uri: String,
 }
 
 impl Track {
-    pub fn to_row(&self) -> String {
+    pub fn to_row(&self) -> Vec<String> {
         let artists = self
             .artists
             .iter()
             .map(|a| a.name.clone())
             .collect::<Vec<_>>()
             .join(", ");
-        format!(
-            "{} — {}  ·  {}  ·  {}:{:02}",
-            self.name,
+        vec![
+            self.name.clone(),
             artists,
-            self.album.name,
-            self.duration_ms / 60_000,
-            (self.duration_ms % 60_000) / 1_000
-        )
+            self.album.name.clone(),
+            format!(
+                "{}:{:02}",
+                self.duration_ms / 60_000,
+                (self.duration_ms % 60_000) / 1_000
+            ),
+        ]
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct Device {
+    pub id: String,
+    pub name: String,
+    pub is_active: bool,
 }
