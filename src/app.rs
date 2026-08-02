@@ -1,6 +1,6 @@
 use ratatui::widgets::ListState;
 
-use crate::models::Playlist;
+use crate::models::{Playlist, Track};
 
 pub enum Screen {
     Welcome,
@@ -8,7 +8,7 @@ pub enum Screen {
         rx: tokio::sync::mpsc::Receiver<String>,
         verifier: String,
     },
-    Authenticated,
+    Library,
 }
 
 pub struct App {
@@ -17,4 +17,5 @@ pub struct App {
     pub refresh_token: Option<String>,
     pub playlists: Vec<Playlist>,
     pub list_state: ListState,
+    pub tracks: Vec<Track>,
 }

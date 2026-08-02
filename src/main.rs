@@ -12,7 +12,7 @@ use ratatui::widgets::ListState;
 
 use crate::app::{App, Screen};
 use crate::screens::welcome;
-use crate::screens::{authenticated, waiting_for_auth};
+use crate::screens::{library, waiting_for_auth};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,6 +23,7 @@ async fn main() -> Result<()> {
         refresh_token: None,
         playlists: Vec::new(),
         list_state: ListState::default(),
+        tracks: Vec::new(),
     };
     let mut terminal = ratatui::init();
     let result = app(&mut terminal, &mut app_state).await;
@@ -36,7 +37,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
         terminal.draw(|f| match &app.screen {
             Screen::Welcome => welcome::render(f),
             Screen::WaitingForAuth { .. } => waiting_for_auth::render(f),
-            Screen::Authenticated => authenticated::render(f, app),
+            Screen::Library => library::render(f, app),
         })?;
 
         tokio::select! {
@@ -51,7 +52,7 @@ async fn app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
                 match &app.screen {
                     Screen::Welcome => welcome::update(app, &event)?,
                     Screen::WaitingForAuth { .. }=> {}
-                    Screen::Authenticated => authenticated::update(app, &event)?
+                    Screen::Library => library::update(app, &event).await?
                 }
             }
             code = async {

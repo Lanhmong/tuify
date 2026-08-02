@@ -16,11 +16,11 @@ pub async fn on_token_received(app: &mut App, code: &str) -> Result<()> {
     };
 
     let tokens = exchange_code(code, verifier).await?;
-    let response = get_playlists(&tokens.access_token).await?;
+    let playlists = get_playlists(&tokens.access_token).await?;
     app.access_token = Some(tokens.access_token);
     app.refresh_token = Some(tokens.refresh_token);
-    app.playlists = response.items;
+    app.playlists = playlists;
     app.list_state.select(Some(0));
-    app.screen = Screen::Authenticated;
+    app.screen = Screen::Library;
     Ok(())
 }
